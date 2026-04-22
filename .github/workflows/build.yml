@@ -9,97 +9,22 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # 官方永久Action：拉取你仓库所有源文件
       - name: Checkout repository files
         uses: actions/checkout@v4
 
-      # 官方永久Action：系统原生Python环境，无缺失、无命令报错
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # 极简打包脚本（无长多行嵌套、无粘贴损坏问题）
       - name: Build HTML to WebView APK
-        run: |
-          # 安装永久开源HTML网页打包库，pip系统自带，彻底解决127命令缺失
-          pip install html2apk==1.2.0
-          
-          # 一键打包，完整包含你全部定制需求参数
-          html2apk build \
-          --app-name "电子通行证" \
-          --package-id "com.police.pass" \
-          --version-code 2 \
-          --version-name "1.1" \
-          --icon "./icon.png" \
-          --background "./bg.jpg" \
-          # 状态栏：完全透明底色 + 顶部图标纯黑色
-          --status-bar-color "#00000000" \
-          --status-bar-dark-icon true \
-          # 背景全屏铺满 + 强制锁定竖屏
-          --full-screen true \
-          --screen-orientation "portrait" \
-          # 核心修复：全局彻底禁用所有缓存，根治二次打开时间不显示BUG
-          --disable-cache true \
-          # 纯本地离线锁网，完全拦截所有网络请求
-          --local-only true \
-          --block-all-network true
+        run: pip install html2apk==1.2.0 && html2apk build --app-name "电子通行证" --package-id "com.police.pass" --version-code 2 --version-name "1.1" --icon "./icon.png" --background "./bg.jpg" --status-bar-color "#00000000" --status-bar-dark-icon true --full-screen true --screen-orientation "portrait" --disable-cache true --local-only true --block-all-network true
 
-      # 官方永久Action：上传打包完成的APK安装包
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
           name: app-release
           path: output/app-release.apk
-                  android:supportsRtl="true"
-                  android:theme="@style/Theme.MyIdPass"
-                  android:hardwareAccelerated="true">
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true"
-                      android:screenOrientation="portrait">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
-              <!-- 彻底移除所有网络权限，纯本地离线运行 -->
-              <uses-permission android:name="android.permission.INTERNET" android:maxSdkVersion="0"/>
-          </manifest>
-          EOF
-
-          # ====================== 主题样式：透明状态栏+黑色图标 ======================
-          cat > app/src/main/res/values/styles.xml << 'EOF'
-          <resources>
-              <style name="Theme.MyIdPass" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-                  <item name="windowNoTitle">true</item>
-                  <item name="windowActionBar">false</item>
-                  <item name="android:windowFullscreen">true</item>
-                  <item name="android:windowContentOverlay">@null</item>
-                  <item name="android:windowStatusBarColor">#00000000</item>
-                  <item name="android:windowLightStatusBar">true</item>
-              </style>
-          </resources>
-          EOF
-
-          # ====================== 主Activity代码 ======================
-          # WebView核心：全局彻底禁用所有缓存 + 仅加载本地文件 + 拦截所有网络请求
-          cat > app/src/main/java/com/police/pass/MainActivity.java << 'EOF'
-          package com.police.pass;
-          import android.os.Bundle;
-          import android.webkit.WebResourceRequest;
-          import android.webkit.WebSettings;
-          import android.webkit.WebView;
-          import android.webkit.WebViewClient;
-          import androidx.appcompat.app.AppCompatActivity;
-
-          public class MainActivity extends AppCompatActivity {
-              private WebView webView;
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-                  webView = new WebView(this);
                   setContentView(webView);
                   WebSettings webSettings = webView.getSettings();
 

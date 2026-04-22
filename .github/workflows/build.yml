@@ -1,4 +1,4 @@
-name: Build APK
+name: Build Android APK
 
 on:
   push:
@@ -10,35 +10,210 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Build WebView APK
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Install APK Builder
-      run: npm install -g webview-apk-builder
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
 
-    - name: Build APK File
-      run: |
-        webview-apk-builder build \
-        --app-name "电子通行证" \
-        --package-name "com.police.pass" \
-        --version-code 2 \
-        --version-name "1.1" \
-        --icon "./icon.png" \
-        --background "./bg.jpg" \
-        --status-bar-color "#00000000" \
-        --status-bar-text-color "black" \
-        --clear-cache true \
-        --clear-session-cache true \
-        --immersive-status-bar true \
-        --disable-network true \
-        --screen-orientation "portrait"
+      - name: Create Android Project Structure
+        run: |
+          mkdir -p app/src/main/{java/com/police/pass,res/{drawable,values,layout},assets}
+          mkdir -p gradle/wrapper
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-release
-        path: dist/app-release.apk
+          # settings.gradle
+          cat > settings.gradle << 'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "MyIdPass"
+          include ':app'
+          EOF
+
+          # build.gradle (Project)
+          cat > build.gradle << 'EOF'
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.2.2'
+              }
+          }
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          EOF
+
+          # app/build.gradle
+          cat > app/build.gradle << 'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace "com.police.pass"
+              compileSdk 34
+
+              defaultConfig {
+                  applicationId "com.police.pass"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 2
+                  versionName "1.1"
+              }
+
+              // 锁定竖屏
+              androidManifest {
+                  screenOrientation = 'portrait'
+              }
+
+              buildFeatures {
+                  viewBinding true
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          EOF
+
+          # 核心Android配置：透明状态栏 + 黑色图标 + 全屏 + 离线 + 禁用全部缓存
+          cat > app/src/main/AndroidManifest.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.police.pass">
+              <application
+                  android:allowBackup="false"
+                  android:icon="@drawable/icon"
+                  android:label="电子通行证"
+                  android:supportsRtl="true"
+                  android:theme="@style/Theme.MyIdPass"
+                  android:hardwareAccelerated="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:screenOrientation="portrait">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+              <!-- 完全禁止所有网络权限，纯本地离线锁网 -->
+              <uses-permission android:name="android.permission.INTERNET" android:maxSdkVersion="0" />
+          </manifest>
+          EOF
+
+          # 样式：状态栏完全透明 + 黑色文字图标
+          cat > app/src/main/res/values/styles.xml << 'EOF'
+          <resources>
+              <style name="Theme.MyIdPass" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+                  <item name="windowNoTitle">true</item>
+                  <item name="windowActionBar">false</item>
+                  <item name="android:windowFullscreen">true</item>
+                  <item name="android:windowContentOverlay">@null</item>
+                  <!-- 状态栏完全透明 -->
+                  <item name="android:windowStatusBarColor">#00000000</item>
+                  <!-- 状态栏图标强制黑色 -->
+                  <item name="android:windowLightStatusBar">true</item>
+              </style>
+          </resources>
+          EOF
+
+          # 主Activity：WebView加载本地HTML + 全局彻底禁用所有缓存 + 拦截所有网络请求
+          cat > app/src/main/java/com/police/pass/MainActivity.java << 'EOF'
+          package com.police.pass;
+          import android.os.Bundle;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import androidx.appcompat.app.AppCompatActivity;
+          import java.net.MalformedURLException;
+
+          public class MainActivity extends AppCompatActivity {
+              private WebView webView;
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  webView = new WebView(this);
+                  setContentView(webView);
+                  WebSettings webSettings = webView.getSettings();
+
+                  // ========== 彻底全局禁用所有缓存（根治二次打开时间不显示BUG）==========
+                  webSettings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+                  webSettings.setAppCacheEnabled(false);
+                  webSettings.setDatabaseEnabled(false);
+                  webView.clearHistory();
+                  webView.clearCache(true);
+
+                  // ========== 纯本地离线，完全拦截所有网络请求 ==========
+                  webSettings.setAllowFileAccess(true);
+                  webSettings.setAllowNetworkAccess(false);
+                  webView.setWebViewClient(new WebViewClient(){
+                      @Override
+                      public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                          return true;
+                      }
+                  });
+
+                  // 加载本地assets文件夹内的你的HTML页面
+                  webView.loadUrl("file:///android_asset/index.html");
+              }
+
+              // 返回键原生系统返回功能
+              @Override
+              public void onBackPressed() {
+                  if (webView.canGoBack()) {
+                      webView.goBack();
+                  } else {
+                      super.onBackPressed();
+                  }
+              }
+          }
+          EOF
+
+          # Gradle Wrapper配置
+          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-all.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+
+      - name: Copy your HTML page into Android assets folder
+        run: cp index.html app/src/main/assets/
+
+      - name: Copy icon & background image
+        run: |
+          cp icon.png app/src/main/res/drawable/icon.png
+          cp bg.jpg app/src/main/res/drawable/bg.jpg
+
+      - name: Build Release APK
+        run: ./gradlew assembleRelease
+
+      - name: Upload Built APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: app/build/outputs/apk/release/app-release.apk

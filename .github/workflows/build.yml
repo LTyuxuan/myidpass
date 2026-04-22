@@ -9,81 +9,22 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository files
+      - name: Checkout All Files
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Setup Python Environment
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Build HTML to WebView APK
-        run: pip install html2apk==1.2.0 && html2apk build --app-name "电子通行证" --package-id "com.police.pass" --version-code 2 --version-name "1.1" --icon "./icon.png" --background "./bg.jpg" --status-bar-color "#00000000" --status-bar-dark-icon true --full-screen true --screen-orientation "portrait" --disable-cache true --local-only true --block-all-network true
+      - name: Install Build Tool
+        run: pip install html2apk==1.2.0
 
-      - name: Upload release APK
+      - name: Execute APK Build
+        run: html2apk build --app-name "电子通行证" --package-id "com.police.pass" --version-code 2 --version-name "1.1" --icon "./icon.png" --background "./bg.jpg" --status-bar-color "#00000000" --status-bar-dark-icon true --full-screen true --screen-orientation "portrait" --disable-cache true --local-only true --block-all-network true
+
+      - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
           name: app-release
           path: output/app-release.apk
-                  setContentView(webView);
-                  WebSettings webSettings = webView.getSettings();
-
-                  // ========== 核心：彻底全局禁用所有缓存，根治二次打开时间不显示BUG ==========
-                  webSettings.setCacheMode(WebSettings.LOAD_NO_CACHE);
-                  webSettings.setAppCacheEnabled(false);
-                  webSettings.setDatabaseEnabled(false);
-                  webView.clearHistory();
-                  webView.clearCache(true);
-
-                  // ========== 纯本地离线，完全禁止所有网络访问 ==========
-                  webSettings.setAllowFileAccess(true);
-                  webSettings.setAllowNetworkAccess(false);
-                  webView.setWebViewClient(new WebViewClient(){
-                      @Override
-                      public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                          return true;
-                      }
-                  });
-
-                  // 加载你本地assets内的HTML页面
-                  webView.loadUrl("file:///android_asset/index.html");
-              }
-
-              // 系统原生返回键功能
-              @Override
-              public void onBackPressed() {
-                  if (webView.canGoBack()) {
-                      webView.goBack();
-                  } else {
-                      super.onBackPressed();
-                  }
-              }
-          }
-          EOF
-
-          # ====================== 完整Gradle Wrapper配置（修复之前缺失报错） ======================
-          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
-          distributionBase=GRADLE_USER_HOME
-          distributionPath=wrapper/dists
-          distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-all.zip
-          zipStoreBase=GRADLE_USER_HOME
-          zipStorePath=wrapper/dists
-          EOF
-
-      - name: 拷贝你所有本地文件到Android工程
-        run: |
-          # 拷贝你的HTML页面
-          cp index.html app/src/main/assets/
-          # 拷贝应用图标、背景图
-          cp icon.png app/src/main/res/drawable/icon.png
-          cp bg.jpg app/src/main/res/drawable/bg.jpg
-          cp music.mp3 app/src/main/assets/
-
-      - name: 编译生成Release APK
-        run: ./gradlew assembleRelease
-
-      - name: 上传打包好的APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release
-          path: app/build/outputs/apk/release/app-release.apk

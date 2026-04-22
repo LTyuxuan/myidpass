@@ -9,195 +9,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source Files
+      - name: Checkout All Repository Files
         uses: actions/checkout@v4
 
-      - name: Setup Java JDK
+      - name: Setup Official Java JDK
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: gradle
 
-      - name: Auto Generate Full Android Project
-        run: |
-          # 1. 创建完整安卓工程目录
-          mkdir -p app/src/main/{java/com/police/pass,res/{drawable,values},assets}
-          mkdir -p gradle/wrapper
-
-          # 2. settings.gradle 官方标准配置
-          cat > settings.gradle << 'EOF'
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          rootProject.name = "MyIdPass"
-          include ':app'
-          EOF
-
-          # 3. 根目录build.gradle
-          cat > build.gradle << 'EOF'
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:8.2.2'
-              }
-          }
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          EOF
-
-          # 4. app模块gradle配置
-          cat > app/build.gradle << 'EOF'
-          plugins {
-              id 'com.android.application'
-          }
-          android {
-              namespace "com.police.pass"
-              compileSdk 34
-              defaultConfig {
-                  applicationId "com.police.pass"
-                  minSdk 24
-                  targetSdk 34
-                  versionCode 2
-                  versionName "1.1"
-              }
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
-          }
-          EOF
-
-          # 5. 清单文件：透明状态栏+黑色图标+全屏+离线无网络+竖屏锁定
-          cat > app/src/main/AndroidManifest.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.police.pass">
-              <application
-                  android:allowBackup="false"
-                  android:icon="@drawable/icon"
-                  android:label="电子通行证"
-                  android:supportsRtl="true"
-                  android:theme="@style/Theme.MyIdPass"
-                  android:hardwareAccelerated="true">
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true"
-                      android:screenOrientation="portrait">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
-              <!-- 彻底移除网络权限，纯本地离线运行 -->
-              <uses-permission android:name="android.permission.INTERNET" android:maxSdkVersion="0"/>
-          </manifest>
-          EOF
-
-          # 6. 主题样式：完全透明状态栏 + 顶部图标纯黑色
-          cat > app/src/main/res/values/styles.xml << 'EOF'
-          <resources>
-              <style name="Theme.MyIdPass" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-                  <item name="windowNoTitle">true</item>
-                  <item name="windowActionBar">false</item>
-                  <item name="android:windowFullscreen">true</item>
-                  <item name="android:windowContentOverlay">@null</item>
-                  <item name="android:windowStatusBarColor">#00000000</item>
-                  <item name="android:windowLightStatusBar">true</item>
-              </style>
-          </resources>
-          EOF
-
-          # 7. 核心WebView Activity代码：全缓存禁用+本地加载+拦截所有网络
-          cat > app/src/main/java/com/police/pass/MainActivity.java << 'EOF'
-          package com.police.pass;
-          import android.os.Bundle;
-          import android.webkit.WebResourceRequest;
-          import android.webkit.WebSettings;
-          import android.webkit.WebView;
-          import android.webkit.WebViewClient;
-          import androidx.appcompat.app.AppCompatActivity;
-
-          public class MainActivity extends AppCompatActivity {
-              private WebView webView;
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-                  webView = new WebView(this);
-                  setContentView(webView);
-                  WebSettings webSettings = webView.getSettings();
-
-                  // ========== 核心：全量强制禁用所有缓存，彻底根治二次打开时间不显示BUG ==========
-                  webSettings.setCacheMode(WebSettings.LOAD_NO_CACHE);
-                  webSettings.setAppCacheEnabled(false);
-                  webSettings.setDatabaseEnabled(false);
-                  webView.clearHistory();
-                  webView.clearCache(true);
-
-                  // ========== 纯本地离线，完全拦截所有网络请求 ==========
-                  webSettings.setAllowFileAccess(true);
-                  webSettings.setAllowNetworkAccess(false);
-                  webView.setWebViewClient(new WebViewClient(){
-                      @Override
-                      public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                          return true;
-                      }
-                  });
-
-                  // 加载你本地的HTML页面
-                  webView.loadUrl("file:///android_asset/index.html");
-              }
-
-              // 系统原生返回键功能
-              @Override
-              public void onBackPressed() {
-                  if (webView.canGoBack()) {
-                      webView.goBack();
-                  } else {
-                      super.onBackPressed();
-                  }
-              }
-          }
-          EOF
-
-          # 8. Gradle Wrapper 官方完整配置（修复所有脚本缺失问题）
-          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
-          distributionBase=GRADLE_USER_HOME
-          distributionPath=wrapper/dists
-          distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-all.zip
-          zipStoreBase=GRADLE_USER_HOME
-          zipStorePath=wrapper/dists
-          EOF
-
-      - name: 拷贝你所有本地资源文件到安卓工程
-        run: |
-          cp index.html app/src/main/assets/
-          cp icon.png app/src/main/res/drawable/icon.png
-          cp bg.jpg app/src/main/res/drawable/bg.jpg
-          cp music.mp3 app/src/main/assets/
-
-      - name: 编译生成正式版Release APK
+      - name: Compile Release APK
         run: ./gradlew assembleRelease
 
-      - name: 上传最终打包好的APK安装包
+      - name: Upload Final APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release

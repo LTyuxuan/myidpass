@@ -1,0 +1,12 @@
+<resources>
+    <style name="Theme.MyIdPass" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="windowNoTitle">true</item>
+        <item name="windowActionBar">false</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <!-- 状态栏完全透明底色 -->
+        <item name="android:windowStatusBarColor">#00000000</item>
+        <!-- 状态栏顶部图标强制纯黑色 -->
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<!-- 强制背景图覆盖安卓状态栏，解决顶部黑边问题 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+<!-- ===================== 新增：沉浸式状态栏配置 ===================== -->
+<meta name="statusBarImmersed" content="true">
+<meta name="webViewLayoutFullTop" content="true">
+<!-- ================================================================== -->
+
+<!-- ===================== 新增：纯本地禁用网络 完整锁网 ===================== -->
+<meta name="disableNetwork" content="true">
+<meta name="onlyLocalFile" content="true">
+<meta name="blockHttp" content="true">
+<meta name="blockHttps" content="true">
+<!-- ====================================================================== -->
+
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>电子通行证</title>
+<style>
+    * { 
+        margin: 0; 
+        padding: 0; 
+        box-sizing: border-box; 
+    }
+    html, body { 
+        width: 100vw; 
+        height: 100vh; 
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+    }
+    /* 全屏背景图，完全铺满包括状态栏 */
+    .bg-img { 
+        position: fixed; 
+        top: 0; 
+        left: 0;
+        width: 100%; 
+        height: 100%; 
+        object-fit: cover; 
+        z-index: 1; 
+    }
+
+    /* ===================== 顶部区域：左上角返回箭头 ===================== */
+    /* 终极修复：85°内角 极致尖角 无拼接 无平头 微信同款箭头 */
+    .top-back-arrow {
+        position: fixed; /* 固定定位：箭头固定在屏幕上不移动 */
+        top: 7%;         /* 距离屏幕顶部的距离：数值越大越靠下，越小越靠上 */
+        left: 5%;        /* 距离屏幕左侧的距离：数值越大越靠右，越小越靠左 */
+        z-index: 10;     /* 显示层级：数值越大越在顶层，不会被遮挡 */
+        width: 24px;     /* 箭头容器宽度：和height一起改，调整箭头整体大小 */
+        height: 24px;    /* 箭头容器高度：和width一起改，调整箭头整体大小 */
+    }
+
+    /* 2. 顶部标题：电子通行证 */
+    .top-title {
+        position: fixed;
+        /* 位置可调：top上下距离、left左右距离 */
+        top: 7%;
+        left: 50%;
+        transform: translateX(-50%); /* 水平居中，和原图对齐 */
+        z-index: 10;
+        /* 字体样式全部可调 */
+        font-size: 20px;
+        font-weight: 400;
+        color: #ffffff;
+        letter-spacing: 0px; /* 字符左右间距可调 */
+    }
+
+    /* 时间区域 已彻底删除文字阴影，保留所有可调参数 */
+    .time-box {
+        position: fixed;
+        /* 【上下位置调整】数值越小越靠上，越大越靠下，可±0.5%微调 */
+        top: 21%;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        /* 【字体大小调整】数值越小字体越小，可±2px微调 */
+        font-size: 24px;
+        font-weight: 400;
+        color: #ffffff;
+        white-space: nowrap;
+        /* 已移除全局字符间距，改为分区域独立调整 */
+    }
+
+    /* 【年月日部分左右间距调整】修改此数值调整年、月、日之间的字符间距 */
+    .date-part {
+        letter-spacing: 0px; 
+    }
+    /* 【时分秒部分左右间距调整】修改此数值调整时、分、秒之间的字符间距 */
+    .time-part {
+        letter-spacing: 0px;
+    }
+
+    /* ===================== 下方个人信息文本 全部独立可调样式 ===================== */
+    /* 3. 姓名：郭雨轩 */
+    .info-name {
+        position: fixed;
+        top: 62%;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+        font-size: 23px;
+        font-weight: 400;
+        color: #ffffff;
+        letter-spacing: 0px;
+    }
+
+    /* 4. 警号4128088 */
+    .info-police-id {
+        position: fixed;
+        top: 66.75%;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+        font-size: 17px;
+        font-weight: 400;
+        color: #ffffff;
+        letter-spacing: 0px;
+    }
+
+    /* 5. 部门：五监区 */
+    .info-department {
+        position: fixed;
+        top: 69.75%;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+        font-size: 17px;
+        font-weight: 400;
+        color: #ffffff;
+        letter-spacing: 0px;
+    }
+
+    /* 6. 职务：执纪监督员 */
+    .info-job {
+        position: fixed;
+        top: 72.75%;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+        font-size: 17px;
+        font-weight: 400;
+        color: #ffffff;
+        letter-spacing: 0px;
+    }
+
+</style>
+</head>
+<body>
+    <!-- 背景图，替换你本地bg.jpg即可 -->
+    <img src="bg.jpg" class="bg-img">
+
+    <!-- 左上角返回箭头（SVG矢量，无拼接、极致尖角） -->
+    <div class="top-back-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round">
+            <!-- 笔直不歪 | 85°内角 | 线条粗细2 -->
+            <path stroke-width="2" d="M17 3 L7 12 L17 21" />
+        </svg>
+    </div>
+
+    <!-- 2. 顶部标题 电子通行证 -->
+    <div class="top-title">电子通行证</div>
+
+    <!-- 原有时间显示区域（年月日+时分秒独立间距完全保留） -->
+    <div class="time-box">
+        <span class="date-part" id="datePart"></span>
+        <span class="time-part" id="timePart"></span>
+    </div>
+
+    <!-- 3. 姓名：郭雨轩 -->
+    <div class="info-name">郭雨轩</div>
+    <!-- 4. 警号4128088 -->
+    <div class="info-police-id">警号4128088</div>
+    <!-- 5. 部门：五监区 -->
+    <div class="info-department">五监区</div>
+    <!-- 6. 职务：执纪监督员 -->
+    <div class="info-job">执纪监督员</div>
+
+    <!-- 背景音乐 仅自动播放一次，永不重播 -->
+    <audio id="bgMusic" autoplay preload="auto">
+        <source src="music.mp3" type="audio/mpeg">
+    
+
+<script>
+	const bgAudio = document.getElementById('bgMusic');
+    // 全局标志位：确保音乐一生只播放一次
+    let hasPlayed = false;
+    // 全局定时器变量（生命周期管理，彻底解决二次打开时间消失）
+    let timeInterval = null;
+
+    // 音乐播放完毕自动停止并重置，永不重播
+    bgAudio.onended = function() {
+        bgAudio.pause();
+        bgAudio.currentTime = 0;
+        hasPlayed = true;
+    };
+
+    // 实时时间刷新，格式：年-月-日 时:分:秒
+    function refreshLocalTime() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hour = String(now.getHours()).padStart(2, '0');
+        const minute = String(now.getMinutes()).padStart(2, '0');
+        const second = String(now.getSeconds()).padStart(2, '0');
+        
+        // 分别赋值给两个独立的元素，实现不同的字符间距
+        document.getElementById('datePart').innerText = `${year}-${month}-${day}`;
+        document.getElementById('timePart').innerText = `${hour}:${minute}:${second}`;
+    }
+
+    // 启动时间更新（强制清除旧定时器，防重复冲突）
+    function startTimeUpdate() {
+        if (timeInterval) {
+            clearInterval(timeInterval);
+            timeInterval = null;
+        }
+        // 立即执行一次，无空白延迟
+        refreshLocalTime();
+        timeInterval = setInterval(refreshLocalTime, 1000);
+    }
+
+    // 页面隐藏时停止定时器
+    function stopTimeUpdate() {
+        if (timeInterval) {
+            clearInterval(timeInterval);
+            timeInterval = null;
+        }
+    }
+
+    // 页面全生命周期监听，覆盖所有打开场景
+    // 首次页面加载完成
+    document.addEventListener('DOMContentLoaded', function() {
+        startTimeUpdate();
+        // 仅加载时自动播放音乐1次
+        if (!hasPlayed) {
+            bgAudio.muted = false;
+            bgAudio.play().catch(() => {
+                hasPlayed = true;
+            });
+            hasPlayed = true;
+        }
+    });
+    
+    // 前后台切换、二次打开APP触发
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            startTimeUpdate();
+        } else {
+            stopTimeUpdate();
+        }
+    });
+
+    // 返回键关闭APP页面销毁时
+    window.addEventListener('beforeunload', function() {
+        stopTimeUpdate();
+        bgAudio.pause();
+        bgAudio.currentTime = 0;
+    });
+</script>
+</body>
+</html>

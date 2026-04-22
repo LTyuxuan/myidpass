@@ -12,24 +12,33 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Build APK
-      uses: seegood-dev/webview-apk-builder@v1
+    - name: Build WebView APK
+      uses: actions/setup-node@v4
       with:
-        appName: "电子通行证"
-        packageName: "com.police.pass"
-        versionCode: 2
-        versionName: "1.1"
-        icon: "icon.png"
-        background: "bg.jpg"
-        # 黑色状态栏图标 + 完全透明悬浮状态栏
-        statusBarColor: "#00000000"
-        statusBarTextColor: "black"
-        # 彻底关闭WebView缓存，根治二次打开时间不显示
-        clearCache: true
-        clearSessionCache: true
-        immersiveStatusBar: true
-        # 纯本地离线锁网，无任何网络请求
-        disableNetwork: true
-        hideNavigationBar: false
-        # 锁定竖屏，禁止旋转
-        screenOrientation: "portrait"
+        node-version: 20
+
+    - name: Install APK Builder
+      run: npm install -g webview-apk-builder
+
+    - name: Build APK File
+      run: |
+        webview-apk-builder build \
+        --app-name "电子通行证" \
+        --package-name "com.police.pass" \
+        --version-code 2 \
+        --version-name "1.1" \
+        --icon "./icon.png" \
+        --background "./bg.jpg" \
+        --status-bar-color "#00000000" \
+        --status-bar-text-color "black" \
+        --clear-cache true \
+        --clear-session-cache true \
+        --immersive-status-bar true \
+        --disable-network true \
+        --screen-orientation "portrait"
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release
+        path: dist/app-release.apk
